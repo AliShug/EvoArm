@@ -1,0 +1,117 @@
+# Defines a protocol for communication between the computer and Arduino
+basic-com: &base
+    1: True
+    2: True
+    can_get: True
+    can_set: False
+    type: int
+
+commands:
+    -   <<: *base
+        name: ModelNumber
+    -   <<: *base
+        name: FirmwareVersion
+    -   <<: *base
+        name: ID
+        can_set: True
+    -   <<: *base
+        name: ReturnDelay
+        can_set: True
+
+    -   <<: *base
+        name: CWLimit
+        can_set: True
+        type: float
+    -   <<: *base
+        name: CCWLimit
+        can_set: True
+        type: float
+
+    -   <<: *base
+        name: TempLimit
+        can_set: True
+    -   <<: *base
+        name: LowVoltageLimit
+        can_set: True
+        type: float
+    -   <<: *base
+        name: HighVoltageLimit
+        can_set: True
+        type: float
+    -   <<: *base
+        name: MaxTorque
+        can_set: True
+        type: float
+    -   <<: *base
+        name: MaxTorque
+        can_set: True
+        type: float
+
+    -   <<: *base
+        name: AlarmFlags
+        can_set: True
+        2: False
+        
+    -   <<: *base
+        name: ShutdownFlags
+        can_set: True
+    -   <<: *base
+        name: TorqueEnable
+        can_set: True
+        type: bool
+    -   <<: *base
+        name: LED
+        can_set: True
+
+    -   <<: *base
+        name: Voltage
+        type: float
+    -   <<: *base
+        name: Position
+        type: float
+    -   <<: *base
+        name: Load
+        type: float
+    -   <<: *base
+        name: Temperature
+    -   <<: *base
+        name: Speed
+        type: float
+    -   <<: *base
+        name: GoalPosition
+        can_set: True
+        type: float
+    -   <<: *base
+        name: GoalSpeed
+        can_set: True
+        type: float
+
+    -   <<: *base
+        name: TorqueLimit
+        can_set: True
+        type: float
+
+    -   <<: *base
+        name: CWMargin
+        2: False
+        can_set: True
+    -   <<: *base
+        name: CCWMargin
+        2: False
+        can_set: True
+    -   <<: *base
+        name: CWSlope
+        2: False
+        can_set: True
+    -   <<: *base
+        name: CCWSlope
+        2: False
+        can_set: True
+    -   <<: *base
+        name: Punch
+        can_set: True
+        type: float
+
+    -   <<: *base
+        name: Moving
+        type: bool

@@ -1,0 +1,345 @@
+classname: DX1Motor
+description: >
+    Interface between an arduino microcontroller and AX12x Dynamixel
+    servo motors.
+
+# Hardware serial port to use for the library
+serial: Serial1
+# Definitions for special/internal functions
+codefile: dx1_codefile.cpp
+
+# Debug output
+debug: False
+
+public_functions:
+    -   DX1Motor()
+    -   DX1Motor(unsigned char id)
+    -   ~DX1Motor()
+    -   static void Init(int baud_mode, int pin)
+    -   int read(unsigned char adr, unsigned char len, unsigned char *data)
+    -   int write(unsigned char adr, unsigned char len, unsigned char *data)
+    -   void retarget(unsigned char id)
+
+private_functions:
+    -   static int convertFromTemp(int val)
+    -   static int convertToTemp(int raw)
+    -   static int convertFromVoltage(float val)
+    -   static float convertToVoltage(int raw)
+    -   static int convertFromDegrees(float val)
+    -   static float convertToDegrees(int raw)
+    -   static int convertFromPercentage(float val)
+    -   static float convertToPercentage(int raw)
+    -   bool waitTimeout(int timeout)
+    -   unsigned char computeChecksum(unsigned char *data_blk_ptr, unsigned short data_blk_size)
+    -   void startPacket(unsigned char instruction, bool broadcast = false)
+    -   void bufferParams(unsigned char *data_block, unsigned short block_length)
+    -   void sendPacket()
+    -   int doReceive(int timeout)
+
+variables:
+    - name: _id
+      type: unsigned char
+    - name: "*_packet_data"
+      type: unsigned char
+    - name: _packet_length
+      type: unsigned short
+    - name: _responseParams
+      type: unsigned short
+    - name: _responseData[16]
+      type: unsigned char
+    - name: CommPin
+      type: int
+      static: True
+    - name: Baud
+      type: long
+      static: True
+
+defines:
+    - PING 0x01
+    - READ_DATA 0x02
+    - WRITE_DATA 0x03
+    - REG_WRITE 0x04
+    - ACTION 0x05
+    - RESET 0x06
+    - SYNC_WRITE 0x83
+
+    - RETURN_NONE 0
+    - RETURN_READ 1
+    - RETURN_ALL 2
+    - BAUD_9600 207
+    - BAUD_57600 34
+    - BAUD_115200 16
+    - BAUD_1MBS 1
+    - LED_ENABLE 1
+    - LED_DISABLE 0
+
+    - PACKET_BUFFER_SIZE 256
+    - TX_DELAY_TIME 0
+    - BROADCAST_ID 254
+    - RX_TIMEOUT 2000
+
+    - ERR_OK 0
+    - ERR_TIMEOUT 1
+    - ERR_INPUT_VOLTAGE 2
+    - ERR_ANGLE_LIMIT 4
+    - ERR_OVERHEAT 8
+    - ERR_RANGE_LIMIT 16
+    - ERR_PROTOCOL 32
+    - ERR_BAD_CHECKSUM 64
+    - ERR_OVERLOAD 128
+    - ERR_INSTRUCTION 256
+
+    - ERR_CORRUPTION -1
+
+attribs:
+  - name: ModelNumber
+    adr: 0
+    access: R
+    size: 2
+    type: int
+
+  - name: FirmwareVersion
+    adr: 2
+    access: R
+    size: 1
+    type: int
+
+  - name: ID
+    adr: 3
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 253
+    onchange: |
+        // Update internal ID
+        _id = id;
+
+  - name: BaudRate
+    adr: 4
+    access: RW
+    size: 1
+    type: int
+
+  - name: ReturnDelay
+    adr: 5
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 254
+
+  - name: CWLimit
+    adr: 6
+    access: RW
+    size: 2
+    type: float
+    min: 0
+    max: 1023
+    unit: Degrees
+
+  - name: CCWLimit
+    adr: 8
+    access: RW
+    size: 2
+    type: float
+    min: 0
+    max: 1023
+    unit: Degrees
+
+  - name: TempLimit
+    adr: 11
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 150
+    unit: Temp
+
+  - name: LowVoltageLimit
+    adr: 12
+    access: RW
+    size: 1
+    type: float
+    min: 50
+    max: 250
+    unit: Voltage
+
+  - name: HighVoltageLimit
+    adr: 13
+    access: RW
+    size: 1
+    type: float
+    min: 50
+    max: 250
+    unit: Voltage
+
+  - name: MaxTorque
+    adr: 14
+    access: RW
+    size: 2
+    type: float
+    min: 0
+    max: 1023
+    unit: Percentage
+
+  - name: ReturnLevel
+    adr: 16
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 2
+
+  - name: AlarmFlags
+    adr: 17
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 127
+
+  - name: ShutdownFlags
+    adr: 18
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 127
+
+  - name: TorqueEnable
+    adr: 24
+    access: RW
+    size: 1
+    type: bool
+
+  - name: LED
+    adr: 25
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 1
+
+  - name: CWMargin
+    adr: 26
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 254
+
+  - name: CCWMargin
+    adr: 27
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 254
+
+  - name: CWSlope
+    adr: 28
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 254
+
+  - name: CCWSlope
+    adr: 29
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 254
+
+  - name: GoalPosition
+    adr: 30
+    access: RW
+    size: 2
+    type: float
+    min: 0
+    max: 1023
+    unit: Degrees
+
+  - name: GoalSpeed
+    adr: 32
+    access: RW
+    size: 2
+    type: float
+    min: 0
+    max: 1023
+    unit: Percentage
+
+  - name: TorqueLimit
+    adr: 34
+    access: RW
+    size: 2
+    type: float
+    min: 0
+    max: 1023
+    unit: Percentage
+
+  - name: Position
+    adr: 36
+    access: R
+    size: 2
+    type: float
+    unit: Degrees
+
+  - name: Speed
+    adr: 38
+    access: R
+    size: 2
+    type: float
+    unit: Percentage
+
+  - name: Load
+    adr: 40
+    access: R
+    size: 2
+    type: float
+    unit: Percentage
+
+  - name: Voltage
+    adr: 42
+    access: R
+    size: 1
+    type: float
+    unit: Voltage
+
+  - name: Temperature
+    adr: 43
+    access: R
+    size: 1
+    type: int
+    unit: Temp
+
+  - name: InstructionStored
+    adr: 44
+    access: R
+    size: 1
+    type: bool
+
+  - name: Moving
+    adr: 46
+    access: R
+    size: 1
+    type: bool
+
+  - name: Lock
+    adr: 47
+    access: RW
+    size: 1
+    type: int
+    min: 0
+    max: 1
+
+  - name: Punch
+    adr: 48
+    access: RW
+    size: 2
+    type: float
+    min: 0
+    max: 1023
+    unit: Percentage
