@@ -18,3 +18,5 @@ The inverse kinematics application is written in Python with [PyGame](http://pyg
 Start the application with `python PyIK` from the root directory. Unfortunately the application may not be usable on smaller screens, since the size is fixed. To enable control, press the spacebar, and watch the command window in which the app was started for additional information.
 
 ![Inverse Kinematics program](Docs/Img/ik.gif)
+
+The IK app is configured to connect to the arm through a properly configured Arduino Mega2560 controller, from a Windows machine. More details to come!
