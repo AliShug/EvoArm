@@ -1,2 +1,3 @@
 *.pyc
 OldVersions/
+lockfile.lck
