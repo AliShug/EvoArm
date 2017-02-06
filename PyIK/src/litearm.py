@@ -3,6 +3,8 @@ from __future__ import print_function
 import numpy as np
 import struct
 
+import yaml
+
 import solvers
 import pid
 from util import *
@@ -13,28 +15,50 @@ MOTORSLOPE = 30
 
 ERRORLIM = 5.0
 
-class ArmConfig:
-    """Holds an arm's proportions, limits and other configuration data"""
-    def __init__(self,
-                 main_length = 148.4,
-                 forearm_length = 160,
-                 linkage_length = 155,
-                 lower_actuator_length = 65,
-                 upper_actuator_length = 54.4,
-                 wrist_length = 90.52,
-                 shoulder_offset = [-9.7, 18.71]):
-        self.main_length = main_length
-        self.forearm_length = forearm_length
-        self.linkage_length = linkage_length
-        self.lower_actuator_length = lower_actuator_length
-        self.upper_actuator_length = upper_actuator_length
-        self.wrist_length = wrist_length;
-        self.shoulder_offset = shoulder_offset
+class ServoMapping:
+    """Given a directional ratio and offset, maps between a servo position and an arm pose angle."""
+    def __init__(self, ratio = 1.0, offset = 0.0, limits = [0, 300]):
+        self.ratio = ratio
+        self.offset = offset
+        self.limits = limits
 
+    def fromServo(self, servo_angle):
+        return servo_angle * self.ratio + self.offset
+
+    def toServo(self, arm_angle):
+        return (arm_angle - self.offset) / self.ratio
+
+class ArmConfig:
+    """Loads and stores an arm's proportions, limits and other configuration data"""
+    def __init__(self):
+        pass
+
+    def loadConfigFile(self, config_file):
+        file = open(config_file)
+        config = yaml.load(file.read())
+        file.close()
+        self.loadConfigData(config)
+
+    def loadConfigData(self, config):
+        self.name = config['name']
+
+        arm = config['config']
+        self.main_length = arm['elevator_length']
+        self.forearm_length = arm['forearm_length']
+        self.linkage_length = arm['linkage_length']
+        self.lower_actuator_length = arm['lower_actuator_length']
+        self.upper_actuator_length = arm['upper_actuator_length']
+        self.wrist_length = arm['wrist_length']
+        self.shoulder_offset = arm['shoulder_offset']
+
+        self.servos = {}
+        for s in arm['servos']:
+            mapping = ServoMapping(s['ratio'], s['offset'], s['limits'])
+            self.servos[s['name']] = mapping
 
 class ArmPose:
     """
-    Defines a physical configuration of a LiteArm robot arm.
+    Defines a physical configuration of a LiteArm-style robot arm.
     Internal angles are relative to vertical (elevator/actuator) or straight
     forward (swing), and are stored in radians. Extracted servo angles range
     0-300 and are measured in degrees.
@@ -45,30 +69,10 @@ class ArmPose:
     """
     structFormat = 'fffff'
 
-    @staticmethod
-    def calcElevatorAngle(servoAngle):
-        return radians(178.21 - servoAngle)
-
-    @staticmethod
-    def calcSwingAngle(servoAngle):
-        return radians(150.0 - servoAngle)
-
-    @staticmethod
-    def calcActuatorAngle(servoAngle):
-        return radians(servoAngle - 204.78)
-
-    @staticmethod
-    def calcWristXAngle(servoAngle):
-        return radians(150.0 - servoAngle)
-
-    @staticmethod
-    def calcWristYAngle(servoAngle):
-        return radians(servoAngle - 147.0)
-
     def __init__(self,
                  arm_config,
                  swing_angle,
-                 shoulder_angle,
+                 elevator_angle,
                  actuator_angle,
                  elbow_angle,
                  elbow2D,
@@ -78,9 +82,10 @@ class ArmPose:
                  wrist_x,
                  wrist_y):
         self.cfg = arm_config
-        self.swing_angle = swing_angle
-        self.shoulder_angle = shoulder_angle
-        self.actuator_angle = actuator_angle
+        self.angles = {}
+        self.angles['swing'] = swing_angle
+        self.angles['elevator'] = elevator_angle
+        self.angles['actuator'] = actuator_angle
         self.elbow_angle = elbow_angle
         # Joints in the arm
         shoulder = rotate(self.cfg.shoulder_offset, swing_angle)
@@ -98,54 +103,42 @@ class ArmPose:
         self.elbow[1] = elbow2D[1]
         self.wrist = self.effector - normalize(arm_vec)*arm_config.wrist_length
         # Wrist pose
-        self.wristXAngle = wrist_x
-        self.wristYAngle = wrist_y
+        self.angles['wrist_x'] = wrist_x
+        self.angles['wrist_y'] = wrist_y
 
-    def getServoElevator(self):
-        return 178.21 - degrees(self.shoulder_angle)
+    def getServoAngle(self, servo_name):
+        angle = degrees(self.angles[servo_name])
+        return self.cfg.servos[servo_name].toServo(angle)
 
-    def getServoActuator(self):
-        return degrees(self.actuator_angle) + 204.78
-
-    def getServoSwing(self):
-        return 150 - degrees(self.swing_angle)
-
-    def getServoWristX(self):
-        return 150 - degrees(self.wristXAngle)
-
-    def getServoWristY(self):
-        return 147 + degrees(self.wristYAngle)
+    def setServoAngle(self, servo_name, angle):
+        adjusted = self.cfg.servos[servo_name].fromServo(angle)
+        self.angles[servo_name] = radians(adjusted)
 
     def armDiffAngle(self):
-        return degrees(self.shoulder_angle - self.actuator_angle)
+        return degrees(self.angles['elevator'] - self.angles['actuator'])
 
-    def checkActuator(self):
-        angle = self.getServoActuator()
-        return angle >= 95 and angle <= 250
+    def checkServoAngle(self, servo_name):
+        servo = self.cfg.servos[servo_name]
+        angle = self.getServoAngle(servo_name)
+        return angle >= servo.limits[0] and angle <= servo.limits[1]
+
+    def checkServoAngles(self):
+        """Checks that the servo angles for the pose are within defined limits; SKIPS WRIST SERVOS!"""
+        valid = True
+        for name in self.cfg.servos.keys():
+            if name in ('wrist_x', 'wrist_y'):
+                continue
+            valid = valid and self.checkServoAngle(name)
+        return valid
+        #return True
 
     def checkDiff(self):
         angle = self.armDiffAngle()
         return angle >= 44 and angle <= 175
 
-    def checkElevator(self):
-        angle = self.getServoElevator()
-        return angle >= 60 and angle <= 210
-
     def checkForearm(self):
-        angle = degrees(self.elbow_angle + self.shoulder_angle)
+        angle = degrees(self.elbow_angle + self.angles['elevator'])
         return angle < 200 and angle > 80
-
-    def checkSwing(self):
-        angle = self.getServoSwing()
-        return angle >= 60 and angle <= 240
-
-    def checkWristX(self):
-        angle = self.getServoWristX()
-        return angle >= 60 and angle <= 240
-
-    def checkWristY(self):
-        angle = self.getServoWristY()
-        return angle >= 60 and angle <= 160
 
     def checkPositioning(self):
         # When Y>0 Forearm always faces outwards
@@ -160,20 +153,18 @@ class ArmPose:
         return True
 
     def checkClearance(self):
-        return (self.checkDiff() and self.checkActuator() and
-                self.checkElevator() and self.checkSwing() and
-                self.checkWristX() and self.checkWristY() and
+        return (self.checkDiff() and self.checkServoAngles() and
                 self.checkPositioning() and self.checkForearm())
 
     def serialize(self):
         """Returns a packed struct holding the pose information"""
         return struct.pack(
             ArmPose.structFormat,
-            self.swing_angle,
-            self.shoulder_angle,
+            self.angles['swing'],
+            self.angles['elevator'],
             self.elbow_angle,
-            self.wristXAngle,
-            self.wristYAngle
+            self.angles['wrist_x'],
+            self.angles['wrist_y']
         )
 
 class ArmController:
@@ -246,16 +237,9 @@ class ArmController:
             changed = True
         if changed:
             # Set servos on/off
-            if self.servos['swing'] is not None:
-                self.servos['swing'].setTorqueEnable(self.motion_enable)
-            if self.servos['shoulder'] is not None:
-                self.servos['shoulder'].setTorqueEnable(self.motion_enable)
-            if self.servos['elbow'] is not None:
-                self.servos['elbow'].setTorqueEnable(self.motion_enable)
-            if self.servos['wrist_x'] is not None:
-                self.servos['wrist_x'].setTorqueEnable(self.motion_enable)
-            if self.servos['wrist_y'] is not None:
-                self.servos['wrist_y'].setTorqueEnable(self.motion_enable)
+            for name, servo in self.servos.items():
+                if servo is not None:
+                    servo.setTorqueEnable(self.motion_enable)
 
     def setWristGoalPosition(self, pos):
         self.ik.setGoal(pos)
@@ -281,7 +265,7 @@ class ArmController:
                 self.cfg,
                 swing_angle = self.ik.swing,
                 # angles from vertical
-                shoulder_angle = arm_vert_angle,
+                elevator_angle = arm_vert_angle,
                 actuator_angle = actuator_angle,
                 # angle between the main arm and forearm
                 elbow_angle = elbow_angle,
@@ -324,11 +308,16 @@ class ArmController:
         wrist_y_servo = self.servos['wrist_y'].data['pos']
 
         # Find the internal arm-pose angles for the given servo positions
-        swing_angle = ArmPose.calcSwingAngle(swing_servo)
-        elevator_angle = ArmPose.calcElevatorAngle(elevator_servo)
-        actuator_angle = ArmPose.calcActuatorAngle(actuator_servo)
-        wrist_x_angle = ArmPose.calcWristXAngle(wrist_x_servo)
-        wrist_y_angle = ArmPose.calcWristYAngle(wrist_y_servo)
+        swing_angle = self.cfg.servos['swing'].fromServo(swing_servo)
+        swing_angle = radians(swing_angle)
+        elevator_angle = self.cfg.servos['elevator'].fromServo(elevator_servo)
+        elevator_angle = radians(elevator_angle)
+        actuator_angle = self.cfg.servos['actuator'].fromServo(actuator_servo)
+        actuator_angle = radians(actuator_angle)
+        wrist_x_angle = self.cfg.servos['wrist_x'].fromServo(wrist_x_servo)
+        wrist_x_angle = radians(wrist_x_angle)
+        wrist_y_angle = self.cfg.servos['wrist_y'].fromServo(wrist_y_servo)
+        wrist_y_angle = radians(wrist_y_angle)
         # Solve elbow angle for given actuator and elevator angles
         # (this is the angle from the elevator arm's direction to the forearm's)
         elbow_angle = self.physsolver.solve_forearm(elevator_angle, actuator_angle)

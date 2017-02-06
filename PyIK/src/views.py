@@ -73,11 +73,11 @@ class PlaneView:
         r.drawLine(pt_l([0,0]), pt_l([0,150]), green)
         r.drawText('y', green, pt_l([-10,170]))
         # Z axis from side
-        zvec = rotate([0,1], pose.swing_angle)
+        zvec = rotate([0,1], pose.angles['swing'])
         r.drawLine(pt_l([0,0]), pt_l([zvec[1]*150,0]), blue)
         r.drawText('z', blue, pt_l([zvec[1]*150,0]))
         # X axis from side
-        xvec = rotate([-1,0], pose.swing_angle)
+        xvec = rotate([-1,0], pose.angles['swing'])
         r.drawLine(pt_l([0,0]), pt_l([xvec[1]*150,0]), red)
         r.drawText('x', red, pt_l([xvec[1]*150,0]))
 
@@ -89,7 +89,7 @@ class PlaneView:
         fore_arm = pose.wrist2D - pose.elbow2D
         effector = pose.effector2D - pose.wrist2D
 
-        vec = rotate(vertical, pose.actuator_angle)
+        vec = rotate(vertical, pose.angles['actuator'])
         actuator = vec*pose.cfg.lower_actuator_length
         upper_actuator = -normalize(fore_arm)*pose.cfg.upper_actuator_length
 
@@ -121,7 +121,7 @@ class PlaneView:
         r.drawCircle(pt_l(pose.effector2D), self.line_width, col)
 
         # Wrist
-        wrist_vec = rotate(horizontal, pose.wristYAngle) * 20
+        wrist_vec = rotate(horizontal, pose.angles['wrist_y']) * 20
         r.drawLine(pt_l(pose.effector2D), pt_l(pose.effector2D + wrist_vec), col)
 
         # show 2D effector position
@@ -136,7 +136,7 @@ class PlaneView:
             x = 50
         else:
             x = 200
-        vert_angle = degrees(pose.shoulder_angle)
+        vert_angle = degrees(pose.angles['elevator'])
         text = "Main arm {0:.2f} deg".format(vert_angle)
         r.drawText(text, black, [x, 40])
 
@@ -176,7 +176,7 @@ class TopView:
             offset = 600
         else:
             offset = 750
-        swing = degrees(pose.swing_angle)
+        swing = degrees(pose.angles['swing'])
         text = "Swing {0:.2f} deg".format(swing)
         r.drawText(text, self.color, [offset, 20])
 
@@ -208,7 +208,7 @@ class TopView:
         r.drawCircle(pt_r(elbow), self.line_width, gray)
 
         # Wrist joint
-        wrist_vec = rotate(vertical, pose.swing_angle + pose.wristXAngle) * 20
+        wrist_vec = rotate(vertical, pose.angles['swing'] + pose.angles['wrist_x']) * 20
         r.drawLine(pt_r(effector), pt_r(effector + wrist_vec), col)
 
         # show top-down effector position

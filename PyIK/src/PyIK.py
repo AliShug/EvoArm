@@ -6,6 +6,7 @@ import serial
 import socket
 import select
 import struct
+import os
 
 import numpy as np
 import pygame as pyg
@@ -124,6 +125,9 @@ class Kinectics:
         pyg.display.set_caption("IK Control Test")
 
         # The arm's controller - encapsulates IK and arm control
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        arm_config = litearm.ArmConfig()
+        arm_config.loadConfigFile(dir_path + '/../evoarm.yaml')
         self.arm = litearm.ArmController(
             servo_swing = self.servos['swing'],
             servo_shoulder = self.servos['shoulder'],
@@ -131,7 +135,7 @@ class Kinectics:
             servo_wrist_x = self.servos['wrist_x'],
             servo_wrist_y = self.servos['wrist_y'],
             # use the default config
-            arm_config = litearm.ArmConfig())
+            arm_config = arm_config)
 
         # Capacitive sensor on connected UNO
         try:
@@ -297,6 +301,12 @@ class Kinectics:
                         self.arm.enableMovement(False)
                     else:
                         self.arm.enableMovement(True)
+                elif event.key == pyg.K_r:
+                    # Reset position
+                    pose = self.arm.getIKPose()
+                    pose.setServoActuator(150)
+                    pose.setServoElevator(150)
+                    #self.resetIKTarget()
 
         # Clear the render canvas
         self.r.surf.fill(white)
@@ -390,11 +400,11 @@ class Kinectics:
         text = "Elbow differential {0:.3f} deg".format(pose.armDiffAngle())
         self.r.drawText(text, blue if pose.checkDiff() else red, [40, 520])
 
-        text = "Elevator servo target {0:.3f} deg".format(pose.getServoElevator())
-        self.r.drawText(text, blue if pose.checkElevator() else red, [40, 540])
+        text = "Elevator servo target {0:.3f} deg".format(pose.getServoAngle('elevator'))
+        self.r.drawText(text, blue if pose.checkServoAngle('elevator') else red, [40, 540])
 
-        text = "Actuator servo target {0:.3f} deg".format(pose.getServoActuator())
-        self.r.drawText(text, blue if pose.checkActuator() else red, [40, 560])
+        text = "Actuator servo target {0:.3f} deg".format(pose.getServoAngle('actuator'))
+        self.r.drawText(text, blue if pose.checkServoAngle('actuator') else red, [40, 560])
 
         if pose.checkPositioning():
             self.r.drawText("Pose OK", blue, [40, 580])
