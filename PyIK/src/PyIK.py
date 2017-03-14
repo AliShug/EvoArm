@@ -153,7 +153,7 @@ class Kinectics:
         if realPose is not None:
             self.curGoal = self.arm.getRealPose().effector
         else:
-            self.curGoal = np.array([0., 50., 200.])
+            self.curGoal = np.array([0., 40., 250.])
         self.ikTarget = np.array(self.curGoal)
         self.lastValidGoal = np.array(self.curGoal)
         self.curDir = [0.0, 0.0]
