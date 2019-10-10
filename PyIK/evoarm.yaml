@@ -1,0 +1,37 @@
+name: EvoArm
+description: EvoArm configured with 2-axis upward-oriented "wrist"
+config:
+    # General configuration
+    elevator_length: 148.4
+    forearm_length: 160
+    linkage_length: 155
+    lower_actuator_length: 65
+    upper_actuator_length: 54.4
+    wrist_length: 90.52
+    shoulder_offset: [-9.7, 18.71]
+
+    servos:
+        -   name: swing
+            ratio: -1.0
+            offset: 150
+            limits: [60, 240]
+
+        -   name: elevator
+            ratio: -1.0
+            offset: 178.21
+            limits: [60, 210]
+
+        -   name: actuator
+            ratio: 1.0
+            offset: -204.78
+            limits: [100, 250]
+
+        -   name: wrist_x
+            ratio: -1.0
+            offset: 150
+            limits: [60, 240]
+
+        -   name: wrist_y
+            ratio: 1.0
+            offset: 147
+            limits: [60, 160]
